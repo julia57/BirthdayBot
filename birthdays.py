@@ -12,10 +12,10 @@ def ask_name(bot, update):
 
 
 def add_name_is_link(bot, update):
-    messages = DBMessages.query.filter(DBMessages.user == update.message.chat_id).first()
+    messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
     name = update.message.text.strip()
     is_wrong = DBBirthdays.query.filter(DBBirthdays.name == name).filter(DBBirthdays.user ==
-                                                                         update.message.chat_id).all()
+                                                                         update.message.from_user.id).all()
     if len(is_wrong) > 0:
         bot.sendMessage(update.message.chat_id, "Such record already exists.\n Enter a name:\n")
         return "Add_AddNameIsLink"
@@ -45,7 +45,7 @@ def is_link(bot, update):
 
 
 def provide_link_ask_day(bot, update):
-    messages = DBMessages.query.filter(DBMessages.user == update.message.chat_id).first()
+    messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
     text = update.message.text.strip()
     messages.link = text
     db_session.commit()
@@ -59,7 +59,7 @@ def provide_link_ask_day(bot, update):
 
 
 def add_day_ask_month(bot, update):
-    messages = DBMessages.query.filter(DBMessages.user == update.message.chat_id).first()
+    messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
     messages.day = update.message.text.strip()
     if not messages.day.isdigit():
         bot.sendMessage(update.message.chat_id, "date must be digit")
@@ -77,7 +77,7 @@ def add_day_ask_month(bot, update):
 
 
 def add_month_add_birthday(bot, update):
-    messages = DBMessages.query.filter(DBMessages.user == update.message.chat_id).first()
+    messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
     day = messages.day
     month = update.message.text.strip()
     name = messages.name
@@ -100,7 +100,7 @@ def add_month_add_birthday(bot, update):
 
 
 def show_year(bot, update):
-    birthday_list = DBBirthdays.query.filter(DBBirthdays.user == update.message.chat_id).\
+    birthday_list = DBBirthdays.query.filter(DBBirthdays.user == update.message.from_user.id).\
         order_by(DBBirthdays.date).all()
     number_of_birthdays = len(birthday_list)
     answer = ""
@@ -145,7 +145,7 @@ def show_month(bot, update):
     today = date(2016, today.month, today.day)
     month_later = today + timedelta(days=31)
     birthday_list = DBBirthdays.query.filter(DBBirthdays.user ==
-                                             update.message.chat_id).filter(DBBirthdays.date >=
+                                             update.message.from_user.id).filter(DBBirthdays.date >=
                                              today).filter(DBBirthdays.date < month_later).\
         order_by(DBBirthdays.date).all()
     number_of_birthdays = len(birthday_list)
@@ -196,11 +196,18 @@ def remove(bot, update, args):
 
 
 def alarm(bot, job):
+    chat_data = job[1]
     update = job.context[0]
     today = date.today()
     today = date(2016, today.month, today.day)
+    if chat_data['days'] == 1:
+        today += timedelta(days=1)
+    elif chat_data['days'] == -1:
+        today -= timedelta(days=1)
+    text = ""
+    print(today)
     notification = DBBirthdays.query.filter(DBBirthdays.date == today).filter(DBBirthdays.user ==
-                                                                              update.message.chat_id).all()
+                                                                              update.message.from_user.id).all()
     if len(notification) != 0:
         text = "<b>Today:</b>\n"
     for i in notification:
@@ -208,7 +215,7 @@ def alarm(bot, job):
         if i.link is not None:
             text = text + " " + i.link + "\n"
     notification = DBBirthdays.query.filter(DBBirthdays.date == today + timedelta(days=1)).filter(DBBirthdays.user ==
-                                                                              update.message.chat_id).all()
+                                                                              update.message.from_user.id).all()
     if len(notification) != 0:
         text = text + "<b>Tomorrow:</b>\n"
     for i in notification:
