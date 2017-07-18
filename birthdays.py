@@ -1,5 +1,5 @@
 from telegram import ReplyKeyboardMarkup
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from DBMessages import DBMessages
 from DBBirthdays import DBBirthdays
 from config import db_session
@@ -99,7 +99,7 @@ def add_month_add_birthday(bot, update):
     return "Menu"
 
 
-def show_year(bot, update):
+def show_year(bot, update, chat_data):
     birthday_list = DBBirthdays.query.filter(DBBirthdays.user == update.message.from_user.id).\
         order_by(DBBirthdays.date).all()
     number_of_birthdays = len(birthday_list)
@@ -107,8 +107,17 @@ def show_year(bot, update):
     if number_of_birthdays == 0:
         bot.sendMessage(update.message.chat_id, "No birthdays yet:(\nUse /add to add one.")
     else:
+        now = datetime.now()
         today = date.today()
         today = date(2016, today.month, today.day)
+        if chat_data['sign'] and (chat_data['time_zone'].hour + now.hour > 23 or
+                                      (chat_data['time_zone'].hour + now.hour == 23 and chat_data[
+                                          'time_zone'].minute + now.minute > 60)):
+            today += timedelta(days=1)
+        elif chat_data['sign'] and (now.hour - chat_data['time_zone'].hour < 0 or
+                                        (now.hour - chat_data['time_zone'].hour == 0 and now.minute - chat_data[
+                                            'time_zone'].minute < 0)):
+            today -= timedelta(days=1)
         left, right = 0, number_of_birthdays
         while (left < right):
             middle = (left + right) // 2
@@ -140,9 +149,18 @@ def show_year(bot, update):
     return "Menu"
 
 
-def show_month(bot, update):
+def show_month(bot, update, chat_data):
+    now = datetime.now()
     today = date.today()
     today = date(2016, today.month, today.day)
+    if chat_data['sign'] and (chat_data['time_zone'].hour + now.hour > 23 or
+                                  (chat_data['time_zone'].hour + now.hour == 23 and chat_data[
+                                      'time_zone'].minute + now.minute > 60)):
+        today += timedelta(days=1)
+    elif chat_data['sign'] and (now.hour - chat_data['time_zone'].hour < 0 or
+                                    (now.hour - chat_data['time_zone'].hour == 0 and now.minute - chat_data[
+                                        'time_zone'].minute < 0)):
+        today -= timedelta(days=1)
     month_later = today + timedelta(days=31)
     birthday_list = DBBirthdays.query.filter(DBBirthdays.user ==
                                              update.message.from_user.id).filter(DBBirthdays.date >=
@@ -196,13 +214,16 @@ def remove(bot, update, args):
 
 
 def alarm(bot, job):
-    chat_data = job[1]
+    chat_data = job.context[1]
     update = job.context[0]
+    now = datetime.now()
     today = date.today()
     today = date(2016, today.month, today.day)
-    if chat_data['days'] == 1:
+    if chat_data['sign'] and (chat_data['time_zone'].hour + now.hour > 23 or
+                                  (chat_data['time_zone'].hour + now.hour == 23 and chat_data['time_zone'].minute + now.minute > 60)):
         today += timedelta(days=1)
-    elif chat_data['days'] == -1:
+    elif chat_data['sign'] and (now.hour - chat_data['time_zone'].hour < 0 or
+                                    (now.hour - chat_data['time_zone'].hour == 0 and now.minute - chat_data['time_zone'].minute < 0)):
         today -= timedelta(days=1)
     text = ""
     print(today)
@@ -214,8 +235,9 @@ def alarm(bot, job):
         text = text + "-" + i.name + "\n"
         if i.link is not None:
             text = text + " " + i.link + "\n"
-    notification = DBBirthdays.query.filter(DBBirthdays.date == today + timedelta(days=1)).filter(DBBirthdays.user ==
-                                                                              update.message.from_user.id).all()
+    notification = DBBirthdays.query.filter(DBBirthdays.date ==
+                                            today + timedelta(days=1)).filter(DBBirthdays.user
+                                                                              == update.message.from_user.id).all()
     if len(notification) != 0:
         text = text + "<b>Tomorrow:</b>\n"
     for i in notification:
