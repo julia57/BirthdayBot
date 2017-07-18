@@ -10,6 +10,6 @@ db_session = scoped_session(sessionmaker(bind=engine))
 Base = declarative_base()
 Base.query = db_session.query_property()
 
-updater = Updater("340284668:AAFjrHr7B8ovQE8op62RcakCe-07pXyhF3c")
+updater = Updater("TOKEN")
 dp = updater.dispatcher
 job_queue = updater.job_queue
