@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from datetime import date, timedelta, datetime
 from DBMessages import DBMessages
 from DBBirthdays import DBBirthdays
@@ -7,7 +7,7 @@ import birthday_class
 
 
 def ask_name(bot, update):
-    bot.sendMessage(update.message.chat_id, "Enter a name:\n")
+    bot.sendMessage(update.message.chat_id, "Enter a name:\n", reply_markup=ReplyKeyboardRemove())
     return 'Add_AddNameIsLink'
 
 
@@ -17,7 +17,8 @@ def add_name_is_link(bot, update):
     is_wrong = DBBirthdays.query.filter(DBBirthdays.name == name).filter(DBBirthdays.user ==
                                                                          update.message.from_user.id).all()
     if len(is_wrong) > 0:
-        bot.sendMessage(update.message.chat_id, "Such record already exists.\n Enter a name:\n")
+        bot.sendMessage(update.message.chat_id, "Such record already exists.\n Enter a name:\n",
+                        reply_markup=ReplyKeyboardRemove())
         return "Add_AddNameIsLink"
     messages.name = name
     db_session.commit()
@@ -32,6 +33,8 @@ def is_link(bot, update):
         bot.sendMessage(update.message.chat_id, "provide a link")
         return "Add_ProvideLinkAskDay"
     elif update.message.text == "No":
+        messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
+        messages.link = None
         reply_keyboard = [['1', '2', '3', '4', '5', '6', '7'], ['8', '9', '10', '11', '12', '13'],
                           ['14', '15', '16', '17', '18', '19'], ['20', '21', '22', '23', '24', '25'],
                           ['26', '27', '28', '29', '30', '31']]
@@ -40,7 +43,7 @@ def is_link(bot, update):
                                                                    one_time_keyboard=True))
         return 'Add_AddDayAskMonth'
     else:
-        bot.sendMessage("Impossible answer")
+        bot.sendMessage("Impossible answer", reply_markup=ReplyKeyboardRemove())
         return "Menu"
 
 
@@ -62,10 +65,18 @@ def add_day_ask_month(bot, update):
     messages = DBMessages.query.filter(DBMessages.user == update.message.from_user.id).first()
     messages.day = update.message.text.strip()
     if not messages.day.isdigit():
-        bot.sendMessage(update.message.chat_id, "date must be digit")
+        reply_keyboard = [['1', '2', '3', '4', '5', '6', '7'], ['8', '9', '10', '11', '12', '13'],
+                          ['14', '15', '16', '17', '18', '19'], ['20', '21', '22', '23', '24', '25'],
+                          ['26', '27', '28', '29', '30', '31']]
+        bot.sendMessage(update.message.chat_id, "date must be digit", reply_markup=ReplyKeyboardMarkup(reply_keyboard,
+                                                               one_time_keyboard=True))
         return "Add_AddDayAskMonth"
     if int(messages.day) > 31 or int(messages.day) < 1:
-        bot.sendMessage(update.message.chat_id, "impossible date")
+        reply_keyboard = [['1', '2', '3', '4', '5', '6', '7'], ['8', '9', '10', '11', '12', '13'],
+                          ['14', '15', '16', '17', '18', '19'], ['20', '21', '22', '23', '24', '25'],
+                          ['26', '27', '28', '29', '30', '31']]
+        bot.sendMessage(update.message.chat_id, "impossible date", reply_markup=ReplyKeyboardMarkup(reply_keyboard,
+                                                               one_time_keyboard=True))
         return "Add_AddDayAskMonth"
     db_session.commit()
     reply_keyboard = [['January', 'February', 'March'], ['April', 'May', 'June'],
@@ -83,19 +94,35 @@ def add_month_add_birthday(bot, update):
     name = messages.name
     link = messages.link
     if month not in birthday_class.MonthToNumber:
-        bot.sendMessage(update.message.chat_id, "Wrong month")
+        reply_keyboard = [['January', 'February', 'March'], ['April', 'May', 'June'],
+                          ['July', 'August', 'September'], ['October', 'November', 'December']]
+        update.message.reply_text("Wrong month \n",
+                                  reply_markup=ReplyKeyboardMarkup(reply_keyboard,
+                                                                   one_time_keyboard=True))
         return "Add_AddMonthAddBirthday"
     if month == "February" and (str(day) == '31' or str(day) == '30'):
-        bot.sendMessage(update.message.chat_id, text="No such day in February:(")
+        key_board = [["/add"], ["/month", "/year"]]
+        update.message.reply_text(
+            text="No such day in February:(",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
         return "Menu"
     if month in {'April', 'June', 'September', 'November'} and str(day) == '31':
-        bot.sendMessage(update.message.chat_id, text="This month contains only 30 days;)")
+        key_board = [["/add"], ["/month", "/year"]]
+        update.message.reply_text(
+            text="This month contains only 30 days;)",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
         return "Menu"
     n_date = date(2016, birthday_class.MonthToNumber[month], int(day))
     new_birthday = DBBirthdays(update.message.chat_id, n_date, name, link)
     db_session.add(new_birthday)
     db_session.commit()
-    bot.sendMessage(update.message.chat_id, "New birthday successfully added!")
+    key_board = [["/add"], ["/month", "/year"]]
+    update.message.reply_text(
+        text="New birthday successfully added",
+        reply_markup=ReplyKeyboardMarkup(key_board,
+                                         one_time_keyboard=False))
     return "Menu"
 
 
@@ -105,7 +132,11 @@ def show_year(bot, update, chat_data):
     number_of_birthdays = len(birthday_list)
     answer = ""
     if number_of_birthdays == 0:
-        bot.sendMessage(update.message.chat_id, "No birthdays yet:(\nUse /add to add one.")
+        key_board = [["/add"], ["/month", "/year"]]
+        update.message.reply_text(
+            text="No birthdays yet:(\nUse /add to add one.",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
     else:
         now = datetime.now()
         today = date.today()
@@ -169,7 +200,11 @@ def show_month(bot, update, chat_data):
     number_of_birthdays = len(birthday_list)
     answer = ""
     if number_of_birthdays == 0:
-        bot.sendMessage(update.message.chat_id, "No birthdays yet:(\nUse /add to add one.")
+        key_board = [["/add"], ["/month", "/help"]]
+        update.message.reply_text(
+            text="No birthdays yet:(\nUse /add to add one.",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
     else:
         left = 0
         if birthday_list[left].date == today:
@@ -198,17 +233,28 @@ def show_month(bot, update, chat_data):
 def remove(bot, update, args):
     name_to_remove = ""
     if len(args) == 0:
-        bot.sendMessage(update.message.chat_id, text="Try: /remove <name> \n"
-                                                     "example: /remove Alexander Pushkin")
+        key_board = [["/add"], ["/month", "/help"]]
+        update.message.reply_text(
+            text="Try: /remove <name> \nexample: /remove Alexander Pushkin",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
         return "Menu"
     for i in args:
         name_to_remove = i + " "
     name_to_remove = name_to_remove.strip()
     candidates = DBBirthdays.query.filter(DBBirthdays.name == name_to_remove).all()
     if len(candidates) == 0:
-        bot.sendMessage(update.message.chat_id, "No such record")
+        key_board = [["/add"], ["/month", "/help"]]
+        update.message.reply_text(
+            text="No such record",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
     else:
-        bot.sendMessage(update.message.chat_id, "Successfully removed")
+        key_board = [["/add"], ["/month", "/help"]]
+        update.message.reply_text(
+            text="Successfully removed",
+            reply_markup=ReplyKeyboardMarkup(key_board,
+                                             one_time_keyboard=False))
         db_session.delete(candidates[0])
         db_session.commit()
 
@@ -226,7 +272,6 @@ def alarm(bot, job):
                                     (now.hour - chat_data['time_zone'].hour == 0 and now.minute - chat_data['time_zone'].minute < 0)):
         today -= timedelta(days=1)
     text = ""
-    print(today)
     notification = DBBirthdays.query.filter(DBBirthdays.date == today).filter(DBBirthdays.user ==
                                                                               update.message.from_user.id).all()
     if len(notification) != 0:
@@ -245,4 +290,4 @@ def alarm(bot, job):
         if i.link is not None:
             text = text + " " + i.link + "\n"
     if text != "":
-        bot.sendMessage(update.message.chat_id, text, parse_mode="HTML")
+        bot.sendMessage(update.message.chat_id, text, parse_mode="HTML", reply_markup=ReplyKeyboardRemove())
